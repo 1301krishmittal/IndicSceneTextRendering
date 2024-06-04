@@ -38,10 +38,10 @@ random.seed()
 #get the list of unique font family Names
 with open(sys.argv[2]) as f:
 	fontsList = f.read().splitlines()
-print 'number of unique fonts being considered= ', len(fontsList)
+print ('number of unique fonts being considered= ', len(fontsList))
 #a set of images , whose random crops can be used as background for the rendered word images. We used Validation set of Places dataset for this
 # replace the below path with your location of images
-PlacesImList=glob.glob("/media/HDD/val_large/*.jpg")
+PlacesImList=glob.glob("R.jpeg")
 
 writeDirParent=sys.argv[3]+sys.argv[5]+'/'
 xmlFileName=sys.argv[3]+sys.argv[4]+'_DetailedAnnotation.csv'
@@ -73,17 +73,17 @@ shadowWidthSignOptions={'+','-'}
 #gtfile = open('ocr_gt.txt','w')
 
 numWords=len(words)
-print 'number of words in the vocab= ', numWords
+print ('number of words in the vocab= ', numWords)
 
 #writeDir=writeDirParent+'0\/'
 for i in range(0,numWords):
     if i%1000==0:
-        print 'completed ', i
+        print ('completed ', i)
         thousand=i/1000
-    	writeDir=writeDirParent+str(thousand)+'/'
+        writeDir=writeDirParent+str(thousand)+'/'
     	#print writeDir
         if not os.path.exists(writeDir):
-    	   os.makedirs(writeDir)
+            os.makedirs(writeDir)
         filelist = glob.glob("*.png")#remove all temp png files after every 1000 words
         for f in filelist:
             os.remove(f)
@@ -109,41 +109,41 @@ for i in range(0,numWords):
 	
     ## random density skew slant font fontsize kerning
 
-    density=random.sample(densityOptions,1)[0]
-    distortArcBoolean=random.sample(distorArcBooleanOptions,1)[0]
-    boldBoolean=random.sample(boldBooleanOptions,1)[0]
-    italicBoolean=random.sample(italicBooleanOptions,1)[0]
-    fontSize=random.sample(fontSizeOptions,1)[0]
-    fontName=random.sample(fontsList,1)[0]
-    fontStretch=random.sample(fontStretchOptions,1)[0]
+    density=random.sample(list(densityOptions),1)[0]
+    distortArcBoolean=random.sample(list(distorArcBooleanOptions),1)[0]
+    boldBoolean=random.sample(list(boldBooleanOptions),1)[0]
+    italicBoolean=random.sample(list(italicBooleanOptions),1)[0]
+    fontSize=random.sample(list(fontSizeOptions),1)[0]
+    fontName=random.sample(list(fontsList),1)[0]
+    fontStretch=random.sample(list(fontStretchOptions),1)[0]
 
-    shadowOpacity=random.sample(shadowOpacityOptions,1)[0]
-    shadowSigma=random.sample(shadowSigmaOptions,1)[0]
-    ShadowWidth=random.sample(shadowWidthOptions,1)[0]
-    ShadowWidthSign=random.sample(shadowWidthSignOptions,1)[0]
+    shadowOpacity=random.sample(list(shadowOpacityOptions),1)[0]
+    shadowSigma=random.sample(list(shadowSigmaOptions),1)[0]
+    ShadowWidth=random.sample(list(shadowWidthOptions),1)[0]
+    ShadowWidthSign=random.sample(list(shadowWidthSignOptions),1)[0]
     ### making the convert command ####
 
     command='convert  -alpha set  -background none'
     skewValue='0'
     arcValue='0'
     if distortArcBoolean==1:
-    	distortArc=random.sample(distortArcOptions,1)[0]
-    	command+=' -distort Arc '+ distortArc
-    	arcValue=distortArc
+        distortArc=random.sample(list(distortArcOptions),1)[0]
+        command+=' -distort Arc '+ distortArc
+        arcValue=distortArc
     command+=' pango:\'   <span '
     command+='font_stretch='+'\"'+fontStretch+'\" '
     command+='foreground='+'\"'+fg_hex+'\" '
     textWord=words[i]
     if italicBoolean==1:
-    	textWord='<i>'+textWord+'</i>'
+        textWord='<i>'+textWord+'</i>'
     if boldBoolean==1:
-    	textWord='<b>'+textWord+'</b>'
+        textWord='<b>'+textWord+'</b>'
     #fontName='Roboto Black'
     fontString='font='+'\"'+fontName+' '+fontSize+' \">  '
     fontString+=' '+ textWord + '</span> \''
     command+=fontString
     #command+=' rendered_image.jpeg'
-    trimBoolean=random.sample(trimOptions,1)[0]
+    trimBoolean=random.sample(list(trimOptions),1)[0]
     #command+=' -trim ' #do trim in all cases
     command+=' png:-|'
 
@@ -153,17 +153,17 @@ for i in range(0,numWords):
     command+= shadowOpacity+'x'+shadowSigma+ShadowWidthSign+ShadowWidth+ShadowWidthSign+ShadowWidth + ' \\) +swap  -background none   -layers merge  +repage '+ 'png:-| '
 
     ######  distort the perspective of the image ########
-    perspectiveBoolean=random.sample(perspectiveBooleanOptions,1)[0]
+    perspectiveBoolean=random.sample(list(perspectiveBooleanOptions),1)[0]
     if perspectiveBoolean==1:
-    	sx=random.uniform(0.7, 1.3)
-    	ry=random.uniform(-0.8, 0.8)
-    	rx=random.uniform(-0.15, 0.15)
-    	sy=random.uniform(0.7, 1.3)
-    	px=random.uniform(0.0001, 0.001)
+        sx=random.uniform(0.7, 1.3)
+        ry=random.uniform(-0.8, 0.8)
+        rx=random.uniform(-0.15, 0.15)
+        sy=random.uniform(0.7, 1.3)
+        px=random.uniform(0.0001, 0.001)
         py=random.uniform(0.0001, 0.001)
     	#print "boom"
-    	command+='convert - ' + ' -alpha set -virtual-pixel transparent +distort Perspective-Projection '
-    	command+= '\''+str(sx)+ ', ' + str(ry) + ', 1.0\t' + str(rx) + ', ' + str(sy) + ', 1.0\t' + str(px) + ', ' + str(py) + '\'  png:-| '
+        command+='convert - ' + ' -alpha set -virtual-pixel transparent +distort Perspective-Projection '
+        command+= '\''+str(sx)+ ', ' + str(ry) + ', 1.0\t' + str(rx) + ', ' + str(sy) + ', 1.0\t' + str(px) + ', ' + str(py) + '\'  png:-| '
     command+= ' convert - '
     if trimBoolean==1:
         command+='  -trim '
@@ -173,7 +173,8 @@ for i in range(0,numWords):
 
     #print '*******'
     #print command.encode('utf-8')
-    os.system(command.encode('utf-8'))
+    print(command)
+    os.system(command)
     finalFgLayerName=textImageName
     im=Image.open(textImageName)
     imWidth, imHeight = im.size
