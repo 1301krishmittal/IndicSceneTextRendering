@@ -28,10 +28,71 @@
 
 import codecs,subprocess,os,sys,glob
 import random
+import json 
 import PIL
-from PIL import Image
+import numpy as np
+from PIL import Image,ImageFilter
 from subprocess import call
+import cv2
 random.seed()
+
+def pad_image(image, padding_range=(0, 20)):
+    left_pad = random.randint(*padding_range)
+    right_pad = random.randint(*padding_range)
+    top_pad = random.randint(*padding_range)
+    bottom_pad = random.randint(*padding_range)
+
+    padded_image = Image.new(image.mode, (image.width + left_pad + right_pad, image.height + top_pad + bottom_pad))
+    padded_image.paste(image, (left_pad, top_pad))
+
+    return padded_image
+
+def squeeze_image(image, ratio_range=(0.9, 1.1)):
+    ratio_x = random.uniform(*ratio_range)
+    ratio_y = random.uniform(*ratio_range)
+    new_width = int(image.width * ratio_x)
+    new_height = int(image.height * ratio_y)
+    squeezed_image = image.resize((new_width, new_height))
+
+    return squeezed_image
+
+def blur_image(image,imagename):
+    image = cv2.imread(imagename)
+    kernel_size1 = random.randint(1, 5)
+    kernel_size2 = random.randint(1, 5)
+    blurred_image = cv2.blur(image, (kernel_size1, kernel_size2))
+    cv2.imwrite(imagename, blurred_image)
+
+def degrade_image(image,imagename):
+    downsample_factor = random.uniform(1, 2)
+    degraded_image = image.resize((int(image.width / downsample_factor), int(image.height / downsample_factor)), Image.LANCZOS)
+    degraded_image = degraded_image.resize((image.width, image.height), Image.LANCZOS)
+    degraded_image.save(imagename)
+    return degraded_image
+
+def invert_colors(image,imagename):
+    if random.random() < 0.5:  # 50% chance to invert colors
+        Image.eval(image, lambda x: 255 - x).save(imagename)
+        return Image.eval(image, lambda x: 255 - x)  # Invert colors
+    else:
+        image.save(imagename)
+        return image  # Return original image
+
+def cloudy_effect(image,imagename):
+    image_np = np.array(image).astype(np.float32)
+    h, w = image_np.shape[:2]
+    down_factor = random.randint(8, 16)
+    noise_h, noise_w = h // down_factor, w // down_factor
+    grain_noise = np.random.uniform(-255, 255, (noise_h, noise_w)).astype(np.float32)
+    grain_noise_resized = np.array(Image.fromarray(grain_noise).resize((w, h), Image.BILINEAR))
+    intensity = random.uniform(0, 0.5)
+    if image_np.ndim == 3 and grain_noise_resized.ndim == 2:
+        grain_noise_resized = np.expand_dims(grain_noise_resized, axis=-1)
+    noisy_image = image_np + intensity * grain_noise_resized
+    noisy_image = np.clip(noisy_image, 0, 255).astype(np.uint8)
+    Image.fromarray(noisy_image).save(imagename)
+    return Image.fromarray(noisy_image)
+
 #language='Arabic'
 #process='intialRender'
 #iteration="One"
@@ -41,11 +102,11 @@ with open(sys.argv[2]) as f:
 print ('number of unique fonts being considered= ', len(fontsList))
 #a set of images , whose random crops can be used as background for the rendered word images. We used Validation set of Places dataset for this
 # replace the below path with your location of images
-PlacesImList=glob.glob("R.jpeg")
+PlacesImList=glob.glob("R.jpg")
 
 writeDirParent=sys.argv[3]+sys.argv[5]+'/'
 xmlFileName=sys.argv[3]+sys.argv[4]+'_DetailedAnnotation.csv'
-
+json_file = "output.json" 
 
 #a flist of words separated by newline
 vocabFile = codecs.open(sys.argv[1],'r',encoding='utf8')
@@ -74,6 +135,10 @@ shadowWidthSignOptions={'+','-'}
 
 numWords=len(words)
 print ('number of words in the vocab= ', numWords)
+bg_hex = '#FFFFFF'
+
+# Fixed grey foreground color
+fg_hex = '#AAAAAA'
 
 #writeDir=writeDirParent+'0\/'
 for i in range(0,numWords):
@@ -90,23 +155,37 @@ for i in range(0,numWords):
     textImageName=str(i)+'_text.png'
 
     # to convert and rgb in tuple to rgb hex representation '#%02x%02x%02x' % (fg[0], fg[1], fg[2])
-    fg=random.sample(range(0, 255), 3) ###### making fg color more brighter ##
+    # fg=random.sample(range(0, 255), 3) ###### making fg color more brighter ##
 
-    bg=random.sample(range(0, 255), 3)
-    bg[0]=abs(fg[0]+100-255)
-    bg[1]=abs(fg[0]+100-255)
-    bg[2]=abs(fg[2]+125-255)
-    sd=random.sample(range(0, 255), 3)
+    # bg=random.sample(range(0, 255), 3)
+    # bg[0]=abs(fg[0]+100-255)
+    # bg[1]=abs(fg[0]+100-255)
+    # bg[2]=abs(fg[2]+125-255)
+    # sd=random.sample(range(0, 255), 3)
 
-    fg_hex='#%02x%02x%02x' % (fg[0], fg[1], fg[2])
-    bg_hex= '#%02x%02x%02x' % (bg[0], bg[1], bg[2])
-    sd_hex= '#%02x%02x%02x' % (sd[0], sd[1], sd[2])
+    # fg_hex='#%02x%02x%02x' % (fg[0], fg[1], fg[2])
+    # bg_hex= '#%02x%02x%02x' % (bg[0], bg[1], bg[2])
+    # sd_hex= '#%02x%02x%02x' % (sd[0], sd[1], sd[2])
+    # fg_hex = '#333333'
+    # bg_hex = '#FFFFFF'
+    # sd_hex = '#333333'
 
-    if bool(random.getrandbits(1)):
-        tmp=fg_hex
-        fg_hex=bg_hex
-        bg_hex=tmp
-	
+    # if bool(random.getrandbits(1)):
+    #     tmp=fg_hex
+    #     fg_hex=bg_hex
+    #     bg_hex=tmp
+
+    fg_value = random.randint(0, 255)
+    alpha = random.uniform(0.75, 1.25)
+    beta = random.uniform(-0.25,0.25)
+    fg_value = int(fg_value*alpha + beta)
+    fg_value = max(fg_value, 128)  # Ensure at least half brightness
+    fg_hex = '#%02x%02x%02x' % (fg_value, fg_value, fg_value)
+    bg_value = 255 - fg_value  # Contrasting brightness
+    bg_hex = '#%02x%02x%02x' % (bg_value, bg_value, bg_value)
+    sd_value = random.randint(0, 255)
+    sd_hex = '#%02x%02x%02x' % (sd_value, sd_value, sd_value)
+
     ## random density skew slant font fontsize kerning
 
     density=random.sample(list(densityOptions),1)[0]
@@ -175,6 +254,18 @@ for i in range(0,numWords):
     #print command.encode('utf-8')
     print(command)
     os.system(command)
+
+    
+    # Apply blur augmentation
+    # blurred_image = blur_image(im)  # Apply blur
+    
+    # blurred_image.save(textImageName)
+    
+    # degraded_image = degrade_image(im)
+    
+    # inverted_image = invert_colors(degraded_image)
+    # inverted_image.save(textImageName)
+
     finalFgLayerName=textImageName
     im=Image.open(textImageName)
     imWidth, imHeight = im.size
@@ -254,7 +345,17 @@ for i in range(0,numWords):
 
     #print finalBlendCommand.encode('utf-8')
     os.system(finalBlendCommand.encode('utf-8'))
-
+    augmentation1 = [pad_image,squeeze_image]
+    augmentation2 = [ blur_image,cloudy_effect,degrade_image,invert_colors]
+    selected_augmentation1 = random.choice(augmentation1)
+    selected_augmentation2 = random.choice(augmentation2)
+    selected_augmentation3 = random.choice(augmentation2)
+    im = Image.open(finalBlendImageName)
+    augmented_image1 = selected_augmentation1(im)  # Pad the image
+    augmented_image1.save(finalBlendImageName)
+    im = Image.open(finalBlendImageName)
+    # augmented_image2 = selected_augmentation2(augmented_image1)
+    augmented_image3 = selected_augmentation3(im,finalBlendImageName)
 
 
     ### WRITING THE GT ALONG WITH RENDERING DETAILS TO a csv ###
@@ -270,5 +371,7 @@ for i in range(0,numWords):
     myfile.write(str(perspectiveBoolean) + ', ')
     myfile.write(str(fgBlendBoolean) + ', ')
     myfile.write(str(bgNaturalImage) + ',\n')
+    with open(json_file, "a", encoding="utf-8") as json_output:
+        json.dump(words[i], json_output, ensure_ascii=False, indent=4)
 
 myfile.close()
